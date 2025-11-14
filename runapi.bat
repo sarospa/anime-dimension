@@ -1,0 +1,1 @@
+fastapi dev animelist.py --port 9000
