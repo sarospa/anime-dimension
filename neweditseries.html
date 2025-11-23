@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<head>
+</head>
+<body>
+	<link rel="stylesheet" href="styles.css">
+	<script src="jquery-3.7.1.min.js"></script>
+	<script src="config.js"></script>
+	<script src="neweditseries.js"></script>
+	<div>
+		<button onclick="location.href='/allseries.html'">Return to series list</button>
+	</div>
+	<div class="formContainer">
+		<div>
+			<label>Name</label>
+			<input type="text" id="name" style="width:500px;" />
+		</div>
+		<div>
+			<label>Anime</label>
+			<ul id="animeInSeries"></ul>
+		</div>
+		<div>
+			<label>Notes</label>
+			<textarea id="notes" cols=100 rows=10></textarea>
+		</div>
+		<button id="submitButton" class="largeButton" onclick="submitSeries()">Edit</button>
+	</div>
+</body>

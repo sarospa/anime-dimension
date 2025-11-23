@@ -3,79 +3,90 @@
 </head>
 <body>
 	<link rel="stylesheet" href="styles.css">
-	<link rel="stylesheet" href="neweditanime.css">
 	<script src="jquery-3.7.1.min.js"></script>
+	<script src="config.js"></script>
 	<script src="neweditanime.js"></script>
 	<div>
-		<label>Title</label>
-		<input type="text" id="title" style="width:500px;" />
+		<button onclick="location.href='/'">Return to anime list</button>
 	</div>
-	<div>
-		<label>Notes</label>
-		<textarea id="notes" cols=100 rows=10></textarea>
+	<div class="formContainer">
+		<div>
+			<label>Title</label>
+			<input type="text" id="title" style="width:500px;" />
+		</div>
+		<div>
+			<label>Notes</label>
+			<textarea id="notes" cols=100 rows=10></textarea>
+		</div>
+		<div>
+			<label>Review</label>
+			<textarea id="review" cols=100 rows=10></textarea>
+		</div>
+		<div>
+			<label>Yuri Rating</label>
+			<select id="yuriRating">
+				<option value="">None</option>
+				<option value="0">0</option>
+				<option value="1">1</option>
+				<option value="2">2</option>
+				<option value="3">3</option>
+				<option value="4">4</option>
+				<option value="5">5</option>
+				<option value="6">6</option>
+			</select>
+		</div>
+		<div>
+			<label>Release Date</label>
+			<input type="date" id="releaseDate"/>
+		</div>
+		<div>
+			<label>Last Season</label>
+			<input type="text" id="lastSeason" />
+		</div>
+		<div>
+			<label>Last Episode</label>
+			<input type="text" id="lastEpisode" />
+		</div>
+		<div>
+			<label>Source</label>
+			<select id="source"></select>
+		</div>
+		<div>
+			<label>Priority</label>
+			<select id="priority">
+				<option value="0">0</option>
+				<option value="1">1</option>
+				<option value="2">2</option>
+				<option value="3">3</option>
+				<option value="4">4</option>
+				<option value="5">5</option>
+				<option value="6">6</option>
+				<option value="7">7</option>
+				<option value="8">8</option>
+				<option value="9">9</option>
+				<option value="10">10</option>
+			</select>
+		</div>
+		<div>
+			<label>Series</label>
+			<select id="series">
+				<option value="">None</option>
+			</select>
+		</div>
+		<div>
+			<span id="tags"></span>
+			<span id="tagControls">
+				<select id="selectTags"></select>
+				<button onclick="addTag()">Add Tag</button>
+			</span>
+		</div>
+		<div id="extrasDiv">
+			<span id="extras"></span>
+			<span id="extraControls">
+				<input id="newExtraText" type="text" />
+				<button onclick="addExtra()">Add Extra</button>
+			</span>
+		</div>
+		<button class="largeButton" id="submitButton" onclick="submitAnime()">Edit</button>
 	</div>
-	<div>
-		<label>Review</label>
-		<textarea id="review" cols=100 rows=10></textarea>
-	</div>
-	<div>
-		<label>Yuri Rating</label>
-		<select id="yuriRating">
-			<option value="">None</option>
-			<option value="0">0</option>
-			<option value="1">1</option>
-			<option value="2">2</option>
-			<option value="3">3</option>
-			<option value="4">4</option>
-			<option value="5">5</option>
-			<option value="6">6</option>
-		</select>
-	</div>
-	<div>
-		<label>Release Date</label>
-		<input type="date" id="releaseDate"/>
-	</div>
-	<div>
-		<label>Last Season</label>
-		<input type="text" id="lastSeason" />
-	</div>
-	<div>
-		<label>Last Episode</label>
-		<input type="text" id="lastEpisode" />
-	</div>
-	<div>
-		<label>Source</label>
-		<select id="source"></select>
-	</div>
-	<div>
-		<label>Priority</label>
-		<select id="priority">
-			<option value="0">0</option>
-			<option value="1">1</option>
-			<option value="2">2</option>
-			<option value="3">3</option>
-			<option value="4">4</option>
-			<option value="5">5</option>
-			<option value="6">6</option>
-			<option value="7">7</option>
-			<option value="8">8</option>
-			<option value="9">9</option>
-			<option value="10">10</option>
-		</select>
-	</div>
-	<div>
-		<span id="tags"></span>
-		<span id="tagControls">
-			<select id="selectTags"></select>
-			<button onclick="addTag()">Add Tag</button>
-		</span>
-	</div>
-	<div id="extrasDiv">
-		<span id="extras"></span>
-		<span id="extraControls">
-			<input id="newExtraText" type="text" />
-			<button onclick="addExtra()">Add Extra</button>
-		</span>
-	</div>
-	<button id="submitButton" onclick="submitAnime()">Edit</button>
 </body>

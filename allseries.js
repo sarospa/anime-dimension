@@ -1,17 +1,13 @@
 displayRows = {
-	"Title": {displayName: "Title", width: "35%"},
-	"Notes": {displayName: "Notes", width: "30%"},
-	"YuriRatingId": {displayName: "Yuri Rating", width: "5%"},
-	"ReleaseDate": {displayName: "Release Date", width: "5%"},
-	"LastEpisode": {displayName: "Last Episode", width: "5%"},
-	"Source": {displayName: "Source", width: "5%"},
-	"Priority": {displayName: "Priority", width: "5%"}
+	"Name": {displayName: "Name", width: "35%"},
+	"Notes": {displayName: "Notes", width: "60%"}
 }
 columns = [];
 data = [];
+notesLimit = 100;
 
 $.when($.ready).then(async function() {
-	const url = `${baseURL}/allanime`
+	const url = `${baseURL}/series`
 	try {
 		const response = await fetch(url);
 		if (!response.ok) {
@@ -29,7 +25,7 @@ $.when($.ready).then(async function() {
 });
 
 function buildTable(titleSearch) {
-	let table = $("#animetable");
+	let table = $("#seriestable");
 	table.empty();
 	
 	let headerRow = $("<tr>");
@@ -42,7 +38,7 @@ function buildTable(titleSearch) {
 	headerRow.append($("<th style='width: 5%'>Edit/View</th>"));
 	table.append(headerRow);
 	
-	let titleIndex = columns.findIndex((col) => col === "Title");
+	let titleIndex = columns.findIndex((col) => col === "Name");
 	
 	let isEven = true;
 	for (let row = 0; row < data.length; row++) {
@@ -54,19 +50,15 @@ function buildTable(titleSearch) {
 				let columnName = columns[col];
 				if (Object.keys(displayRows).includes(columnName)) {
 					let cellData = data[row][col];
-					if (columnName === "Notes" && cellData.length >= 50) {
-						cellData = cellData.substring(0, 50) + "...";
+					if (columnName === "Notes" && cellData.length >= notesLimit) {
+						cellData = cellData.substring(0, notesLimit) + "...";
 					}
 					if (cellData === null) cellData = "";
 					rowElem.append($(`<td>${cellData}</td>`));
 				}
 			}
-			rowElem.append($(`<td><button onclick="location.href='/neweditanime.html?animeid=${data[row][0]}'">Edit/View</button></td>`))
+			rowElem.append($(`<td><button onclick="location.href='/neweditseries.html?seriesid=${data[row][0]}'">Edit/View</button></td>`))
 			table.append(rowElem);
 		}
 	}
-}
-
-function textSearch() {
-	buildTable($("#titleSearch").val().toLowerCase());
 }

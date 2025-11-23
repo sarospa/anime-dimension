@@ -21,7 +21,11 @@ app.add_middleware(
 async def get_all_anime():
 	con = sqlite3.connect("anime.db")
 	cur = con.cursor()
-	res = cur.execute("SELECT AnimeId, Title, Notes, YuriRatingId, ReleaseDate, LastSeason, LastEpisode, SourceId, Priority FROM Anime")
+	res = cur.execute("""
+		SELECT A.AnimeId, A.Title, A.Notes, A.YuriRatingId, A.ReleaseDate, 'S' || A.LastSeason || 'E' || A.LastEpisode AS LastEpisode, S.Name AS Source, A.Priority
+		FROM Anime A
+			JOIN Source S ON A.SourceId = S.SourceId
+		ORDER BY CASE WHEN LOWER(Title) LIKE 'the %' THEN SUBSTR(LOWER(Title), 5) ELSE LOWER(Title) END""")
 	cols = tuple([col[0] for col in cur.description])
 	data = {"columns": cols, "rows": res.fetchall()}
 	return {"message": data}
@@ -30,19 +34,19 @@ async def get_all_anime():
 async def get_anime(anime_id):
 	con = sqlite3.connect("anime.db")
 	cur = con.cursor()
-	anime_res = cur.execute("SELECT * FROM Anime WHERE AnimeId = ?", (anime_id))
+	anime_res = cur.execute("SELECT * FROM Anime WHERE AnimeId = ?", (anime_id,))
 	anime_cols = tuple([col[0] for col in cur.description])
 	anime_data = {"columns": anime_cols, "rows": anime_res.fetchall()}
 	tags_res = cur.execute("""SELECT T.*
 		FROM Anime A
 			JOIN AnimeTag AT ON A.AnimeId = AT.AnimeId
 			JOIN Tag T ON T.TagId = AT.TagId
-		WHERE A.AnimeId = ?""", (anime_id))
+		WHERE A.AnimeId = ?""", (anime_id,))
 	tags_cols = tuple([col[0] for col in cur.description])
 	tags_data = {"columns": tags_cols, "rows": tags_res.fetchall()}
 	extras_res = cur.execute("""SELECT AE.*
 		FROM Anime A JOIN AnimeExtra AE ON A.AnimeId = AE.AnimeId
-		WHERE A.AnimeId = ?""", (anime_id))
+		WHERE A.AnimeId = ?""", (anime_id,))
 	extras_cols = tuple([col[0] for col in cur.description])
 	extras_data = {"columns": extras_cols, "rows": extras_res.fetchall()}
 	return {"message": {"anime": anime_data, "tags": tags_data, "extras": extras_data}}
@@ -55,7 +59,7 @@ async def get_anime_tags(anime_id):
 		FROM Anime A
 			JOIN AnimeTag AT ON A.AnimeId = AT.AnimeId
 			JOIN Tag T ON T.TagId = AT.TagId
-		WHERE A.AnimeId = ?""", (anime_id))
+		WHERE A.AnimeId = ?""", (anime_id,))
 	cols = tuple([col[0] for col in cur.description])
 	data = {"columns": cols, "rows": res.fetchall()}
 	return {"message": data}
@@ -66,7 +70,7 @@ async def get_anime_extras(anime_id):
 	cur = con.cursor()
 	res = cur.execute("""SELECT AE.*
 		FROM Anime A JOIN AnimeExtra AE ON A.AnimeId = AE.AnimeId
-		WHERE A.AnimeId = ?""", (anime_id))
+		WHERE A.AnimeId = ?""", (anime_id,))
 	cols = tuple([col[0] for col in cur.description])
 	data = {"columns": cols, "rows": res.fetchall()}
 	return {"message": data}
@@ -81,7 +85,7 @@ async def get_sources():
 	return {"message": data}
 
 @app.get("/tags")
-async def get_sources():
+async def get_tags():
 	con = sqlite3.connect("anime.db")
 	cur = con.cursor()
 	res = cur.execute("SELECT * FROM Tag")
@@ -89,6 +93,29 @@ async def get_sources():
 	data = {"columns": cols, "rows": res.fetchall()}
 	return {"message": data}
 	
+@app.get("/series")
+async def get_series():
+	con = sqlite3.connect("anime.db")
+	cur = con.cursor()
+	res = cur.execute("SELECT * FROM Series")
+	cols = tuple([col[0] for col in cur.description])
+	data = {"columns": cols, "rows": res.fetchall()}
+	return {"message": data}
+	
+@app.get("/series/{series_id}")
+async def get_single_series(series_id):
+	con = sqlite3.connect("anime.db")
+	cur = con.cursor()
+	res = cur.execute("""
+		SELECT S.SeriesId, S.Name, S.Notes, STRING_AGG(A.Title, '|') AS AnimeInSeries
+		FROM Series S
+			LEFT OUTER JOIN (SELECT * FROM Anime ORDER BY ReleaseDate) A ON A.SeriesId = S.SeriesId
+		WHERE S.SeriesId = ?
+		GROUP BY S.SeriesId, S.Name, S.Notes""", (series_id,))
+	cols = tuple([col[0] for col in cur.description])
+	data = {"columns": cols, "rows": res.fetchall()}
+	return {"message": data}
+
 class Anime(BaseModel):
 	animeId: int | None = None
 	title: str
@@ -100,6 +127,7 @@ class Anime(BaseModel):
 	lastEpisode: int
 	source: int
 	priority: int
+	seriesId: int | None = None
 	tags: list[int]
 	extras: list[list]
 
@@ -108,9 +136,9 @@ async def save_anime(anime: Anime):
 	con = sqlite3.connect("anime.db")
 	cur = con.cursor()
 	if anime.animeId is None:
-		cur.execute("INSERT INTO Anime (Title, Notes, Review, YuriRatingId, ReleaseDate, LastSeason, LastEpisode, SourceId, Priority) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		cur.execute("INSERT INTO Anime (Title, Notes, Review, YuriRatingId, ReleaseDate, LastSeason, LastEpisode, SourceId, Priority, SeriesId) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 			(anime.title, anime.notes, anime.review, anime.yuriRating, anime.releaseDate,
-			anime.lastSeason, anime.lastEpisode, anime.source, anime.priority))
+			anime.lastSeason, anime.lastEpisode, anime.source, anime.priority, anime.seriesId))
 		con.commit()
 		res = cur.execute("SELECT last_insert_rowid()")
 		new_anime_id = res.fetchone()[0]
@@ -121,15 +149,14 @@ async def save_anime(anime: Anime):
 		con.commit()
 		return {"message": new_anime_id}
 	else:
-		cur.execute("UPDATE Anime SET Title=?, Notes=?, Review=?, YuriRatingId=?, ReleaseDate=?, LastSeason=?, LastEpisode=?, SourceId=?, Priority=? WHERE AnimeId=?",
+		cur.execute("UPDATE Anime SET Title=?, Notes=?, Review=?, YuriRatingId=?, ReleaseDate=?, LastSeason=?, LastEpisode=?, SourceId=?, Priority=?, SeriesId=? WHERE AnimeId=?",
 			(anime.title, anime.notes, anime.review, anime.yuriRating, anime.releaseDate,
-			anime.lastSeason, anime.lastEpisode, anime.source, anime.priority, anime.animeId))
+			anime.lastSeason, anime.lastEpisode, anime.source, anime.priority, anime.seriesId, anime.animeId))
 		cur.execute("DELETE FROM AnimeTag WHERE AnimeId=?", (anime.animeId,))
 		for tag_id in anime.tags:
 			cur.execute("INSERT INTO AnimeTag (AnimeId, TagId) VALUES (?, ?)", (anime.animeId, tag_id))
 		res = cur.execute("SELECT AnimeExtraId FROM AnimeExtra WHERE AnimeId = ?", (anime.animeId,))
 		current_extra_ids = [extra[0] for extra in res.fetchall()]
-		print(current_extra_ids)
 		new_extra_ids = [extra[0] for extra in anime.extras]
 		for extra_id in current_extra_ids:
 			if extra_id not in new_extra_ids:
@@ -141,3 +168,23 @@ async def save_anime(anime: Anime):
 				cur.execute("UPDATE AnimeExtra SET Description = ? WHERE AnimeId = ? AND AnimeExtraId = ?", (extra[2], extra[1], extra[0]))
 		con.commit()
 		return {"message": anime.animeId}
+		
+class Series(BaseModel):
+	seriesId: int | None = None
+	name: str
+	notes: str | None = None
+	
+@app.post("/saveseries")
+async def save_series(series: Series):
+	con = sqlite3.connect("anime.db")
+	cur = con.cursor()
+	if series.seriesId is None:
+		cur.execute("INSERT INTO Series (Name, Notes) VALUES (?, ?)", (series.name, series.notes))
+		con.commit()
+		res = cur.execute("SELECT last_insert_rowid()")
+		new_series_id = res.fetchone()[0]
+		return {"message": new_series_id}
+	else:
+		cur.execute("UPDATE Series SET Name=?, Notes=? WHERE SeriesId = ?", (series.name, series.notes, series.seriesId))
+		con.commit()
+		return {"message": series.seriesId}

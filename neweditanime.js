@@ -1,4 +1,3 @@
-baseURL = "http://localhost:9000"
 animeId = null;
 tagList = [];
 allTags = [];
@@ -21,7 +20,7 @@ $.when($.ready).then(async function() {
 		
 		const sources = await sourcesResponse.json();
 		
-		sourceDropdown = $("#source");
+		let sourceDropdown = $("#source");
 		for (let row = 0; row < sources["message"]["rows"].length; row++) {
 			let rowData = sources["message"]["rows"][row]
 			sourceDropdown.append($(`<option value='${rowData[0]}'>${rowData[1]}</option>`))
@@ -35,8 +34,21 @@ $.when($.ready).then(async function() {
 		const tagsData = await tagsResponse.json();
 		allTags = tagsData["message"]["rows"];
 		
+		const seriesResponse = await fetch(`${baseURL}/series`);
+		if (!seriesResponse.ok) {
+			throw new Error(`Response status: ${seriesResponse.status}`);
+		}
+		
+		const seriesData = await seriesResponse.json();
+		
+		let seriesDropdown = $("#series");
+		for (let row = 0; row < seriesData["message"]["rows"].length; row++) {
+			let rowData = seriesData["message"]["rows"][row];
+			seriesDropdown.append($(`<option value='${rowData[0]}'>${rowData[1]}</option>`))
+		}
+		
 		if (animeId !== null) {
-			const animeResponse = await fetch(`http://localhost:9000/anime/${animeId}`);
+			const animeResponse = await fetch(`${baseURL}/anime/${animeId}`);
 			if (!animeResponse.ok) {
 			  throw new Error(`Response status: ${animeResponse.status}`);
 			}
@@ -72,6 +84,9 @@ $.when($.ready).then(async function() {
 			
 			let priority = rows[0][cols.findIndex((col) => col === "Priority")];
 			$("#priority").val(priority);
+			
+			let seriesId = rows[0][cols.findIndex((col) => col === "SeriesId")];
+			$("#series").val(seriesId);
 			
 			let tagCols = anime["message"]["tags"]["columns"];
 			tagList = anime["message"]["tags"]["rows"];
@@ -186,6 +201,7 @@ async function submitAnime() {
 	let lastEpisode = parseInt($("#lastEpisode").val());
 	let source = $("#source").val()
 	let priority = $("#priority").val();
+	let seriesId = $("#series").val();
 	
 	let errorMessage = '';
 	
@@ -213,6 +229,7 @@ async function submitAnime() {
 		"extras": extrasList.filter((_) => true) // to get the indexes lined up properly since I'm handling deleting extras in a fucky way
 	};
 	if (yuriRating) requestBody["yuriRating"] = parseInt(yuriRating);
+	if (seriesId) requestBody["seriesId"] = parseInt(seriesId);
 	
 	const saveRequest = new Request(`${baseURL}/saveanime`, {
 		method: "POST",
