@@ -47,6 +47,19 @@ $.when($.ready).then(async function() {
 			seriesDropdown.append($(`<option value='${rowData[0]}'>${rowData[1]}</option>`))
 		}
 		
+		const partnersResponse = await fetch(`${baseURL}/watchpartners`);
+		if (!partnersResponse.ok) {
+			throw new Error(`Response status: ${partnersResponse.status}`);
+		}
+		
+		const partnersData = await partnersResponse.json();
+		
+		let watchContainer = $("#watchContainer");
+		for (let row = 0; row < partnersData["message"]["rows"].length; row++) {
+			let rowData = partnersData["message"]["rows"][row];
+			watchContainer.append($(`<button onclick="watchAnime(${rowData[0]})">Watch with ${rowData[1]}</button>`));
+		}
+		
 		if (animeId !== null) {
 			const animeResponse = await fetch(`${baseURL}/anime/${animeId}`);
 			if (!animeResponse.ok) {
@@ -189,6 +202,10 @@ function populateTagDropdown() {
 	else {
 		$("#tagControls").show();
 	}
+}
+
+function watchAnime(watchPartnerId) {
+	window.location.href = `/neweditwatchthrough.html?animeid=${animeId}&partnerid=${watchPartnerId}`;
 }
 
 async function submitAnime() {

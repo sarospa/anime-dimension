@@ -5,7 +5,7 @@ body {
 
 table {
 	border-spacing: 0px;
-	margin-top:10px;
+	margin-top: 10px;
 }
 
 table th,td {
@@ -30,9 +30,10 @@ textarea {
 	font-family: serif;
 }
 
-button {
+button, h2 {
 	margin-left: 5px;
 	margin-top: 10px;
+	margin-bottom: 0px;
 }
 
 ul {
@@ -66,7 +67,7 @@ a:visited {
 	font-weight: bold;
 }
 
-.formContainer div {
+.formContainer > div {
 	margin-left: 5px;
 	margin-top: 10px;
 }
@@ -79,7 +80,7 @@ a:visited {
 	width: 80px;
 }
 
-#extrasDiv input {
+#extrasDiv input[type=text] {
 	width: 100px;
 }
 

@@ -101,6 +101,15 @@ async def get_series():
 	cols = tuple([col[0] for col in cur.description])
 	data = {"columns": cols, "rows": res.fetchall()}
 	return {"message": data}
+
+@app.get("/watchpartners")
+async def get_watchpartners():
+	con = sqlite3.connect("anime.db")
+	cur = con.cursor()
+	res = cur.execute("SELECT * FROM WatchPartner")
+	cols = tuple([col[0] for col in cur.description])
+	data = {"columns": cols, "rows": res.fetchall()}
+	return {"message": data}
 	
 @app.get("/series/{series_id}")
 async def get_single_series(series_id):
@@ -114,6 +123,31 @@ async def get_single_series(series_id):
 		GROUP BY S.SeriesId, S.Name, S.Notes""", (series_id,))
 	cols = tuple([col[0] for col in cur.description])
 	data = {"columns": cols, "rows": res.fetchall()}
+	return {"message": data}
+	
+@app.get("/watchthrough/{anime_id}/{partner_id}")
+async def get_single_watchthrough(anime_id, partner_id):
+	con = sqlite3.connect("anime.db")
+	cur = con.cursor()
+	select_query = """
+		SELECT W.WatchthroughId, A.AnimeId, WP.Name AS WatchPartner, A.Title AS AnimeTitle, 
+		W.Episode, W.Season, W.IsActive, W.ForceComplete, AE.Description AS AnimeExtra,
+		AE.AnimeExtraId, CASE WHEN WAE.WatchthroughId IS NOT NULL THEN 1 ELSE 0 END As ExtraWatched
+		FROM Watchthrough W
+			JOIN WatchPartner WP ON W.WatchPartnerId = WP.WatchPartnerId
+			JOIN Anime A ON W.AnimeId = A.AnimeId
+			LEFT OUTER JOIN AnimeExtra AE ON W.AnimeId = AE.AnimeId
+			LEFT OUTER JOIN WatchthroughAnimeExtra WAE ON W.WatchthroughId = WAE.WatchthroughId AND AE.AnimeExtraId = WAE.AnimeExtraId
+		WHERE W.AnimeId = ? AND W.WatchPartnerId = ?"""
+	res = cur.execute(select_query, (anime_id, partner_id))
+	cols = tuple([col[0] for col in cur.description])
+	rows = res.fetchall()
+	if len(rows) == 0:
+		cur.execute("INSERT INTO Watchthrough (WatchPartnerId, AnimeId, Episode, Season, IsActive, ForceComplete) VALUES (?, ?, 0, 0, 1, 0)", (partner_id, anime_id))
+		con.commit()
+		res = cur.execute(select_query, (anime_id, partner_id))
+		rows = res.fetchall()
+	data = {"columns": cols, "rows": rows}
 	return {"message": data}
 
 class Anime(BaseModel):
@@ -188,3 +222,36 @@ async def save_series(series: Series):
 		cur.execute("UPDATE Series SET Name=?, Notes=? WHERE SeriesId = ?", (series.name, series.notes, series.seriesId))
 		con.commit()
 		return {"message": series.seriesId}
+
+class WatchthroughCreate(BaseModel):
+	animeId: int
+	watchPartnerId: int
+
+@app.post("/createwatchthrough")
+async def create_watchthrough(watchthrough: WatchthroughCreate):
+	con = sqlite3.connect("anime.db")
+	cur = con.cursor()
+	cur.execute("INSERT INTO Watchthrough (AnimeId, WatchPartnerId, IsActive, ForceComplete, Episode, Season) VALUES (?, ?, 1, 0, 0, 0)", (watchthrough.animeId, watchthrough.watchPartnerId))
+	con.commit()
+	res = cur.execute("SELECT last_insert_rowid()")
+	new_watchthrough_id = res.fetchone()[0]
+	return {"message": new_watchthrough_id}
+		
+class WatchthroughUpdate(BaseModel):
+	watchthroughId: int
+	isActive: bool
+	episode: int
+	season: int
+	forceComplete: int
+	completedExtras: list[int]
+		
+@app.post("/updatewatchthrough")
+async def update_watchthrough(watchthrough: WatchthroughUpdate):
+	con = sqlite3.connect("anime.db")
+	cur = con.cursor()
+	cur.execute("UPDATE Watchthrough SET IsActive = ?, Episode = ?, Season = ?, ForceComplete = ?", (watchthrough.isActive, watchthrough.episode, watchthrough.season, watchthrough.forceComplete))
+	cur.execute("DELETE FROM WatchthroughAnimeExtra WHERE WatchthroughId = ?", (watchthrough.watchthroughId,))
+	for completed_extra_id in watchthrough.completedExtras:
+		cur.execute("INSERT INTO WatchthroughAnimeExtra (WatchthroughId, AnimeExtraId) VALUES (?, ?)", (watchthrough.watchthroughId, completed_extra_id))
+	con.commit()
+	return {"message": watchthrough.watchthroughId}

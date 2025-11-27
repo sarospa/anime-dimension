@@ -34,7 +34,7 @@ $.when($.ready).then(async function() {
 	} catch (error) {
 		console.error(error.message);
 	}
-})
+});
 
 async function submitSeries() {
 	let name = $("#name").val();
