@@ -46,6 +46,10 @@ ul {
 	background-color: #444;
 }
 
+a {
+	color: #2BF;
+}
+
 a:visited {
 	color: fuchsia;
 }

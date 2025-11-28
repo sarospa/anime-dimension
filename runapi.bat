@@ -1,1 +1,1 @@
-fastapi dev animelist.py --port 9000
+fastapi dev app.py --port 9000

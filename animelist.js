@@ -39,7 +39,6 @@ function buildTable(titleSearch) {
 			headerRow.append($(`<th style='width: ${displayRows[columnName].width}'>${displayRows[columnName].displayName}</th>`));
 		}
 	}
-	headerRow.append($("<th style='width: 5%'>Edit/View</th>"));
 	table.append(headerRow);
 	
 	let titleIndex = columns.findIndex((col) => col === "Title");
@@ -57,11 +56,13 @@ function buildTable(titleSearch) {
 					if (columnName === "Notes" && cellData.length >= 50) {
 						cellData = cellData.substring(0, 50) + "...";
 					}
+					else if (columnName === "Title") {
+						cellData = `<a href="/neweditanime.html?animeid=${data[row][0]}">${cellData}</a>`
+					}
 					if (cellData === null) cellData = "";
 					rowElem.append($(`<td>${cellData}</td>`));
 				}
 			}
-			rowElem.append($(`<td><button onclick="location.href='/neweditanime.html?animeid=${data[row][0]}'">Edit/View</button></td>`))
 			table.append(rowElem);
 		}
 	}
@@ -69,4 +70,14 @@ function buildTable(titleSearch) {
 
 function textSearch() {
 	buildTable($("#titleSearch").val().toLowerCase());
+}
+
+async function navigateToRandomAnime() {
+	const response = await fetch(`${baseURL}/randomanime`);
+	if (!response.ok) {
+	  throw new Error(`Response status: ${response.status}`);
+	}
+	
+	const result = await response.json();
+	window.location.href = `/neweditanime.html?animeid=${result["message"]}`
 }

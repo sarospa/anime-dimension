@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import sqlite3
+import random
 
 app = FastAPI()
 
@@ -19,16 +20,8 @@ app.add_middleware(
 
 @app.get("/allanime")
 async def get_all_anime():
-	con = sqlite3.connect("anime.db")
-	cur = con.cursor()
-	res = cur.execute("""
-		SELECT A.AnimeId, A.Title, A.Notes, A.YuriRatingId, A.ReleaseDate, 'S' || A.LastSeason || 'E' || A.LastEpisode AS LastEpisode, S.Name AS Source, A.Priority
-		FROM Anime A
-			JOIN Source S ON A.SourceId = S.SourceId
-		ORDER BY CASE WHEN LOWER(Title) LIKE 'the %' THEN SUBSTR(LOWER(Title), 5) ELSE LOWER(Title) END""")
-	cols = tuple([col[0] for col in cur.description])
-	data = {"columns": cols, "rows": res.fetchall()}
-	return {"message": data}
+	
+	return {"message": get_anime_with_completion()}
 
 @app.get("/anime/{anime_id}")
 async def get_anime(anime_id):
@@ -50,6 +43,14 @@ async def get_anime(anime_id):
 	extras_cols = tuple([col[0] for col in cur.description])
 	extras_data = {"columns": extras_cols, "rows": extras_res.fetchall()}
 	return {"message": {"anime": anime_data, "tags": tags_data, "extras": extras_data}}
+
+@app.get("/randomanime")
+async def get_random_anime():
+	data = get_anime_with_completion()
+	completion_index = data["columns"].index("Completion")
+	filtered_data = [anime for anime in data["rows"] if anime[completion_index] == 0]
+	index = random.randint(0, len(filtered_data))
+	return {"message": filtered_data[index][0]}
 
 @app.get("/tags/{anime_id}")
 async def get_anime_tags(anime_id):
@@ -255,3 +256,36 @@ async def update_watchthrough(watchthrough: WatchthroughUpdate):
 		cur.execute("INSERT INTO WatchthroughAnimeExtra (WatchthroughId, AnimeExtraId) VALUES (?, ?)", (watchthrough.watchthroughId, completed_extra_id))
 	con.commit()
 	return {"message": watchthrough.watchthroughId}
+
+def get_anime_with_completion():
+	con = sqlite3.connect("anime.db")
+	cur = con.cursor()
+	res = cur.execute("""
+		SELECT DISTINCT A.AnimeId, A.Title, A.Notes, A.YuriRatingId, A.ReleaseDate, 'S' || A.LastSeason || 'E' || A.LastEpisode AS LastEpisode, S.Name AS Source, A.Priority,
+			CASE
+				WHEN C1.WatchthroughId IS NOT NULL THEN 4
+				WHEN C2.Season = A.LastSeason AND C2.Episode = A.LastEpisode THEN 3
+				WHEN C2.Season > 1 OR A.LastSeason = 1 AND C2.Season = 1 AND C2.Episode = A.LastEpisode THEN 2
+				WHEN C2.Season > 0 OR C2.Episode > 0 THEN 1
+				ELSE 0
+			END AS Completion
+		FROM Anime A
+			JOIN Source S ON A.SourceId = S.SourceId
+			LEFT OUTER JOIN (SELECT DISTINCT W.*
+						FROM Watchthrough W
+							LEFT OUTER JOIN Watchthrough W2 ON W.AnimeId = W2.AnimeId AND (W.Season * 1000 + W.Episode) < (W2.Season * 1000 + W2.Episode)
+							LEFT OUTER JOIN AnimeExtra AE ON AE.AnimeId = W.AnimeId
+							LEFT OUTER JOIN WatchthroughAnimeExtra WAE ON WAE.WatchthroughId = W.WatchthroughId AND AE.AnimeExtraId = WAE.AnimeExtraId
+						WHERE W2.WatchthroughId IS NULL
+						GROUP BY W.WatchthroughId, W.WatchPartnerId, W.AnimeId, W.Episode, W.Season, W.IsActive, W.ForceComplete
+						HAVING count(*) = sum(CASE WHEN WAE.WatchthroughId IS NOT NULL THEN 1 ELSE 0 END)) C1 ON C1.AnimeId = A.AnimeId
+			LEFT OUTER JOIN (SELECT DISTINCT W.*
+						FROM Watchthrough W
+							LEFT OUTER JOIN Watchthrough W2 ON W.AnimeId = W2.AnimeId AND (W.Season * 1000 + W.Episode) < (W2.Season * 1000 + W2.Episode)
+							LEFT OUTER JOIN AnimeExtra AE ON AE.AnimeId = W.AnimeId
+							LEFT OUTER JOIN WatchthroughAnimeExtra WAE ON WAE.WatchthroughId = W.WatchthroughId AND AE.AnimeExtraId = WAE.AnimeExtraId
+						WHERE W2.WatchthroughId IS NULL) C2 ON C2.AnimeId = A.AnimeId
+		ORDER BY CASE WHEN LOWER(Title) LIKE 'the %' THEN SUBSTR(LOWER(Title), 5) ELSE LOWER(Title) END""")
+	cols = tuple([col[0] for col in cur.description])
+	data = {"columns": cols, "rows": res.fetchall()}
+	return data

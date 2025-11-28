@@ -35,7 +35,6 @@ function buildTable(titleSearch) {
 			headerRow.append($(`<th style='width: ${displayRows[columnName].width}'>${displayRows[columnName].displayName}</th>`));
 		}
 	}
-	headerRow.append($("<th style='width: 5%'>Edit/View</th>"));
 	table.append(headerRow);
 	
 	let titleIndex = columns.findIndex((col) => col === "Name");
@@ -53,11 +52,13 @@ function buildTable(titleSearch) {
 					if (columnName === "Notes" && cellData.length >= notesLimit) {
 						cellData = cellData.substring(0, notesLimit) + "...";
 					}
+					else if (columnName === "Name") {
+						cellData = `<a href="/neweditseries.html?seriesid=${data[row][0]}">${cellData}</a>`
+					}
 					if (cellData === null) cellData = "";
 					rowElem.append($(`<td>${cellData}</td>`));
 				}
 			}
-			rowElem.append($(`<td><button onclick="location.href='/neweditseries.html?seriesid=${data[row][0]}'">Edit/View</button></td>`))
 			table.append(rowElem);
 		}
 	}
