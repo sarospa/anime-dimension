@@ -3,8 +3,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import sqlite3
 import random
+from pathlib import Path
+import shutil
+import os
 
 app = FastAPI()
+dbpath = None
+if os.environ["DEPLOY_ENV"] == "DEV":
+	dbpath = "anime.db"
+elif os.environ["DEPLOY_ENV"] == "PROD":
+	dbpath = "/db/anime.db"
 
 origins = [
 	"*"
@@ -18,6 +26,12 @@ app.add_middleware(
 	allow_headers=["*"],
 )
 
+dbfile = Path(dbpath)
+if not dbfile.is_file():
+	prototype = Path("anime.db")
+	os.makedirs(os.path.dirname(dbfile), exist_ok=True)
+	shutil.copyfile(prototype, dbfile)
+
 @app.get("/allanime")
 async def get_all_anime():
 	
@@ -25,7 +39,7 @@ async def get_all_anime():
 
 @app.get("/anime/{anime_id}")
 async def get_anime(anime_id):
-	con = sqlite3.connect("anime.db")
+	con = sqlite3.connect(dbfile)
 	cur = con.cursor()
 	anime_res = cur.execute("SELECT * FROM Anime WHERE AnimeId = ?", (anime_id,))
 	anime_cols = tuple([col[0] for col in cur.description])
@@ -54,7 +68,7 @@ async def get_random_anime():
 
 @app.get("/tags/{anime_id}")
 async def get_anime_tags(anime_id):
-	con = sqlite3.connect("anime.db")
+	con = sqlite3.connect(dbfile)
 	cur = con.cursor()
 	res = cur.execute("""SELECT T.*
 		FROM Anime A
@@ -67,7 +81,7 @@ async def get_anime_tags(anime_id):
 
 @app.get("/extras/{anime_id}")
 async def get_anime_extras(anime_id):
-	con = sqlite3.connect("anime.db")
+	con = sqlite3.connect(dbfile)
 	cur = con.cursor()
 	res = cur.execute("""SELECT AE.*
 		FROM Anime A JOIN AnimeExtra AE ON A.AnimeId = AE.AnimeId
@@ -78,7 +92,7 @@ async def get_anime_extras(anime_id):
 	
 @app.get("/sources")
 async def get_sources():
-	con = sqlite3.connect("anime.db")
+	con = sqlite3.connect(dbfile)
 	cur = con.cursor()
 	res = cur.execute("SELECT * FROM Source")
 	cols = tuple([col[0] for col in cur.description])
@@ -87,7 +101,7 @@ async def get_sources():
 
 @app.get("/tags")
 async def get_tags():
-	con = sqlite3.connect("anime.db")
+	con = sqlite3.connect(dbfile)
 	cur = con.cursor()
 	res = cur.execute("SELECT * FROM Tag")
 	cols = tuple([col[0] for col in cur.description])
@@ -96,7 +110,7 @@ async def get_tags():
 	
 @app.get("/series")
 async def get_series():
-	con = sqlite3.connect("anime.db")
+	con = sqlite3.connect(dbfile)
 	cur = con.cursor()
 	res = cur.execute("SELECT * FROM Series")
 	cols = tuple([col[0] for col in cur.description])
@@ -105,7 +119,7 @@ async def get_series():
 
 @app.get("/watchpartners")
 async def get_watchpartners():
-	con = sqlite3.connect("anime.db")
+	con = sqlite3.connect(dbfile)
 	cur = con.cursor()
 	res = cur.execute("SELECT * FROM WatchPartner")
 	cols = tuple([col[0] for col in cur.description])
@@ -114,7 +128,7 @@ async def get_watchpartners():
 	
 @app.get("/series/{series_id}")
 async def get_single_series(series_id):
-	con = sqlite3.connect("anime.db")
+	con = sqlite3.connect(dbfile)
 	cur = con.cursor()
 	res = cur.execute("""
 		SELECT S.SeriesId, S.Name, S.Notes, STRING_AGG(A.Title, '|') AS AnimeInSeries
@@ -128,7 +142,7 @@ async def get_single_series(series_id):
 	
 @app.get("/watchthrough/{anime_id}/{partner_id}")
 async def get_single_watchthrough(anime_id, partner_id):
-	con = sqlite3.connect("anime.db")
+	con = sqlite3.connect(dbfile)
 	cur = con.cursor()
 	select_query = """
 		SELECT W.WatchthroughId, A.AnimeId, WP.Name AS WatchPartner, A.Title AS AnimeTitle, 
@@ -168,7 +182,7 @@ class Anime(BaseModel):
 
 @app.post("/saveanime")
 async def save_anime(anime: Anime):
-	con = sqlite3.connect("anime.db")
+	con = sqlite3.connect(dbfile)
 	cur = con.cursor()
 	if anime.animeId is None:
 		cur.execute("INSERT INTO Anime (Title, Notes, Review, YuriRatingId, ReleaseDate, LastSeason, LastEpisode, SourceId, Priority, SeriesId) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -211,7 +225,7 @@ class Series(BaseModel):
 	
 @app.post("/saveseries")
 async def save_series(series: Series):
-	con = sqlite3.connect("anime.db")
+	con = sqlite3.connect(dbfile)
 	cur = con.cursor()
 	if series.seriesId is None:
 		cur.execute("INSERT INTO Series (Name, Notes) VALUES (?, ?)", (series.name, series.notes))
@@ -230,7 +244,7 @@ class WatchthroughCreate(BaseModel):
 
 @app.post("/createwatchthrough")
 async def create_watchthrough(watchthrough: WatchthroughCreate):
-	con = sqlite3.connect("anime.db")
+	con = sqlite3.connect(dbfile)
 	cur = con.cursor()
 	cur.execute("INSERT INTO Watchthrough (AnimeId, WatchPartnerId, IsActive, ForceComplete, Episode, Season) VALUES (?, ?, 1, 0, 0, 0)", (watchthrough.animeId, watchthrough.watchPartnerId))
 	con.commit()
@@ -248,7 +262,7 @@ class WatchthroughUpdate(BaseModel):
 		
 @app.post("/updatewatchthrough")
 async def update_watchthrough(watchthrough: WatchthroughUpdate):
-	con = sqlite3.connect("anime.db")
+	con = sqlite3.connect(dbfile)
 	cur = con.cursor()
 	cur.execute("UPDATE Watchthrough SET IsActive = ?, Episode = ?, Season = ?, ForceComplete = ?", (watchthrough.isActive, watchthrough.episode, watchthrough.season, watchthrough.forceComplete))
 	cur.execute("DELETE FROM WatchthroughAnimeExtra WHERE WatchthroughId = ?", (watchthrough.watchthroughId,))
@@ -258,7 +272,7 @@ async def update_watchthrough(watchthrough: WatchthroughUpdate):
 	return {"message": watchthrough.watchthroughId}
 
 def get_anime_with_completion():
-	con = sqlite3.connect("anime.db")
+	con = sqlite3.connect(dbfile)
 	cur = con.cursor()
 	res = cur.execute("""
 		SELECT DISTINCT A.AnimeId, A.Title, A.Notes, A.YuriRatingId, A.ReleaseDate, 'S' || A.LastSeason || 'E' || A.LastEpisode AS LastEpisode, S.Name AS Source, A.Priority,
