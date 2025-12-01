@@ -34,7 +34,6 @@ if not dbfile.is_file():
 
 @app.get("/allanime")
 async def get_all_anime():
-	
 	return {"message": get_anime_with_completion()}
 
 @app.get("/anime/{anime_id}")
@@ -264,7 +263,7 @@ class WatchthroughUpdate(BaseModel):
 async def update_watchthrough(watchthrough: WatchthroughUpdate):
 	con = sqlite3.connect(dbfile)
 	cur = con.cursor()
-	cur.execute("UPDATE Watchthrough SET IsActive = ?, Episode = ?, Season = ?, ForceComplete = ?", (watchthrough.isActive, watchthrough.episode, watchthrough.season, watchthrough.forceComplete))
+	cur.execute("UPDATE Watchthrough SET IsActive = ?, Episode = ?, Season = ?, ForceComplete = ? WHERE watchthroughId = ?", (watchthrough.isActive, watchthrough.episode, watchthrough.season, watchthrough.forceComplete, watchthrough.watchthroughId))
 	cur.execute("DELETE FROM WatchthroughAnimeExtra WHERE WatchthroughId = ?", (watchthrough.watchthroughId,))
 	for completed_extra_id in watchthrough.completedExtras:
 		cur.execute("INSERT INTO WatchthroughAnimeExtra (WatchthroughId, AnimeExtraId) VALUES (?, ?)", (watchthrough.watchthroughId, completed_extra_id))
@@ -275,7 +274,8 @@ def get_anime_with_completion():
 	con = sqlite3.connect(dbfile)
 	cur = con.cursor()
 	res = cur.execute("""
-		SELECT DISTINCT A.AnimeId, A.Title, A.Notes, A.YuriRatingId, A.ReleaseDate, 'S' || A.LastSeason || 'E' || A.LastEpisode AS LastEpisode, S.Name AS Source, A.Priority,
+		SELECT DISTINCT A.AnimeId, A.Title, A.Notes, A.YuriRatingId, A.ReleaseDate, 'S' || A.LastSeason || 'E' || A.LastEpisode AS LastEpisode,
+			S.Name AS Source, A.Priority, WP.WatchPartners, WPA.WatchPartnersActive,
 			CASE
 				WHEN C1.WatchthroughId IS NOT NULL THEN 4
 				WHEN C2.Season = A.LastSeason AND C2.Episode = A.LastEpisode THEN 3
@@ -299,6 +299,15 @@ def get_anime_with_completion():
 							LEFT OUTER JOIN AnimeExtra AE ON AE.AnimeId = W.AnimeId
 							LEFT OUTER JOIN WatchthroughAnimeExtra WAE ON WAE.WatchthroughId = W.WatchthroughId AND AE.AnimeExtraId = WAE.AnimeExtraId
 						WHERE W2.WatchthroughId IS NULL) C2 ON C2.AnimeId = A.AnimeId
+			LEFT OUTER JOIN (SELECT A.AnimeId, group_concat(W.WatchPartnerId) AS WatchPartners
+						FROM Anime A
+							JOIN Watchthrough W ON W.AnimeId = A.AnimeId
+						GROUP BY A.AnimeId) WP ON A.AnimeId = WP.AnimeId
+			LEFT OUTER JOIN (SELECT A.AnimeId, group_concat(W.WatchPartnerId) AS WatchPartnersActive
+						FROM Anime A
+							JOIN Watchthrough W ON W.AnimeId = A.AnimeId
+						WHERE W.IsActive = 1
+						GROUP BY A.AnimeId) WPA ON A.AnimeId = WPA.AnimeId
 		ORDER BY CASE WHEN LOWER(Title) LIKE 'the %' THEN SUBSTR(LOWER(Title), 5) ELSE LOWER(Title) END""")
 	cols = tuple([col[0] for col in cur.description])
 	data = {"columns": cols, "rows": res.fetchall()}
