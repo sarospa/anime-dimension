@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import sqlite3
 import random
@@ -269,6 +270,10 @@ async def update_watchthrough(watchthrough: WatchthroughUpdate):
 		cur.execute("INSERT INTO WatchthroughAnimeExtra (WatchthroughId, AnimeExtraId) VALUES (?, ?)", (watchthrough.watchthroughId, completed_extra_id))
 	con.commit()
 	return {"message": watchthrough.watchthroughId}
+	
+@app.get("/backup")
+async def get_db_backup():
+	return FileResponse(dbpath, media_type="application/octet-stream", filename="anime.db")
 
 def get_anime_with_completion():
 	con = sqlite3.connect(dbfile)
