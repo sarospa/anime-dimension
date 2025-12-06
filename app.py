@@ -279,7 +279,7 @@ def get_anime_with_completion():
 	con = sqlite3.connect(dbfile)
 	cur = con.cursor()
 	res = cur.execute("""
-		SELECT DISTINCT A.AnimeId, A.Title, A.Notes, A.YuriRatingId, A.ReleaseDate, 'S' || A.LastSeason || 'E' || A.LastEpisode AS LastEpisode,
+		SELECT DISTINCT A.AnimeId, A.Title, A.Review, A.Notes, A.YuriRatingId, A.ReleaseDate, 'S' || A.LastSeason || 'E' || A.LastEpisode AS LastEpisode,
 			S.Name AS Source, A.Priority, WP.WatchPartners, WPA.WatchPartnersActive,
 			CASE
 				WHEN C1.WatchthroughId IS NOT NULL THEN 4
@@ -292,12 +292,13 @@ def get_anime_with_completion():
 			JOIN Source S ON A.SourceId = S.SourceId
 			LEFT OUTER JOIN (SELECT DISTINCT W.*
 						FROM Watchthrough W
-							LEFT OUTER JOIN Watchthrough W2 ON W.AnimeId = W2.AnimeId AND (W.Season * 1000 + W.Episode) < (W2.Season * 1000 + W2.Episode)
+							JOIN Anime A ON A.AnimeId = W.AnimeId
+							LEFT OUTER JOIN Watchthrough W2 ON W.AnimeId = W2.AnimeId AND (W.ForceComplete * 1000000 + W.Season * 1000 + W.Episode) < (W.ForceComplete * 1000000 + W2.Season * 1000 + W2.Episode)
 							LEFT OUTER JOIN AnimeExtra AE ON AE.AnimeId = W.AnimeId
 							LEFT OUTER JOIN WatchthroughAnimeExtra WAE ON WAE.WatchthroughId = W.WatchthroughId AND AE.AnimeExtraId = WAE.AnimeExtraId
-						WHERE W2.WatchthroughId IS NULL
+						WHERE (W2.WatchthroughId IS NULL AND (W.Episode >= A.LastEpisode AND W.Season >= A.LastSeason)) OR W.ForceComplete = 1
 						GROUP BY W.WatchthroughId, W.WatchPartnerId, W.AnimeId, W.Episode, W.Season, W.IsActive, W.ForceComplete
-						HAVING count(*) = sum(CASE WHEN WAE.WatchthroughId IS NOT NULL THEN 1 ELSE 0 END)) C1 ON C1.AnimeId = A.AnimeId
+						HAVING count(*) = sum(CASE WHEN WAE.WatchthroughId IS NOT NULL THEN 1 ELSE 0 END) OR W.ForceComplete = 1) C1 ON C1.AnimeId = A.AnimeId
 			LEFT OUTER JOIN (SELECT DISTINCT W.*
 						FROM Watchthrough W
 							LEFT OUTER JOIN Watchthrough W2 ON W.AnimeId = W2.AnimeId AND (W.Season * 1000 + W.Episode) < (W2.Season * 1000 + W2.Episode)
