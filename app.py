@@ -274,6 +274,16 @@ async def update_watchthrough(watchthrough: WatchthroughUpdate):
 @app.get("/backup")
 async def get_db_backup():
 	return FileResponse(dbpath, media_type="application/octet-stream", filename="anime.db")
+	
+@app.delete("/deleteanime/{anime_id}")
+async def delete_anime(anime_id):
+	con = sqlite3.connect(dbfile)
+	cur = con.cursor()
+	cur.execute("DELETE FROM AnimeExtra WHERE AnimeId = ?", (anime_id,))
+	cur.execute("DELETE FROM AnimeTag WHERE AnimeId = ?", (anime_id,))
+	con.commit()
+	cur.execute("DELETE FROM Anime WHERE AnimeId = ?", (anime_id,))
+	con.commit()
 
 def get_anime_with_completion():
 	con = sqlite3.connect(dbfile)
