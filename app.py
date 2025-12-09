@@ -280,7 +280,7 @@ def get_anime_with_completion():
 	cur = con.cursor()
 	res = cur.execute("""
 		SELECT DISTINCT A.AnimeId, A.Title, A.Review, A.Notes, A.YuriRatingId, A.ReleaseDate, 'S' || A.LastSeason || 'E' || A.LastEpisode AS LastEpisode,
-			S.Name AS Source, A.Priority, WP.WatchPartners, WPA.WatchPartnersActive,
+			S.Name AS Source, S.SourceId, A.Priority, WP.WatchPartners, WPA.WatchPartnersActive, T.TagIds,
 			CASE
 				WHEN C1.WatchthroughId IS NOT NULL THEN 4
 				WHEN C2.Season = A.LastSeason AND C2.Episode = A.LastEpisode THEN 3
@@ -314,6 +314,9 @@ def get_anime_with_completion():
 							JOIN Watchthrough W ON W.AnimeId = A.AnimeId
 						WHERE W.IsActive = 1
 						GROUP BY A.AnimeId) WPA ON A.AnimeId = WPA.AnimeId
+			LEFT OUTER JOIN (SELECT AT.AnimeId, group_concat(AT.TagId) AS TagIds
+						FROM AnimeTag AT
+						GROUP BY AT.AnimeId) T ON T.AnimeId = A.AnimeId
 		ORDER BY CASE WHEN LOWER(Title) LIKE 'the %' THEN SUBSTR(LOWER(Title), 5) ELSE LOWER(Title) END""")
 	cols = tuple([col[0] for col in cur.description])
 	data = {"columns": cols, "rows": res.fetchall()}
