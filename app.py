@@ -296,9 +296,9 @@ def get_anime_with_completion():
 							LEFT OUTER JOIN Watchthrough W2 ON W.AnimeId = W2.AnimeId AND (W.ForceComplete * 1000000 + W.Season * 1000 + W.Episode) < (W.ForceComplete * 1000000 + W2.Season * 1000 + W2.Episode)
 							LEFT OUTER JOIN AnimeExtra AE ON AE.AnimeId = W.AnimeId
 							LEFT OUTER JOIN WatchthroughAnimeExtra WAE ON WAE.WatchthroughId = W.WatchthroughId AND AE.AnimeExtraId = WAE.AnimeExtraId
-						WHERE (W2.WatchthroughId IS NULL AND (W.Episode >= A.LastEpisode AND W.Season >= A.LastSeason)) OR W.ForceComplete = 1
+						WHERE (W2.WatchthroughId IS NULL AND (W.Episode >= A.LastEpisode AND W.Season >= A.LastSeason)) OR (W.ForceComplete = 1 AND W.WatchPartnerId = 1)
 						GROUP BY W.WatchthroughId, W.WatchPartnerId, W.AnimeId, W.Episode, W.Season, W.IsActive, W.ForceComplete
-						HAVING count(*) = sum(CASE WHEN WAE.WatchthroughId IS NOT NULL THEN 1 ELSE 0 END) OR W.ForceComplete = 1) C1 ON C1.AnimeId = A.AnimeId
+						HAVING count(*) = sum(CASE WHEN WAE.WatchthroughId IS NOT NULL THEN 1 ELSE 0 END) OR (W.ForceComplete = 1 AND W.WatchPartnerId = 1)) C1 ON C1.AnimeId = A.AnimeId
 			LEFT OUTER JOIN (SELECT DISTINCT W.*
 						FROM Watchthrough W
 							LEFT OUTER JOIN Watchthrough W2 ON W.AnimeId = W2.AnimeId AND (W.Season * 1000 + W.Episode) < (W2.Season * 1000 + W2.Episode)
