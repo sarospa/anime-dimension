@@ -37,6 +37,34 @@ if not dbfile.is_file():
 async def get_all_anime():
 	return {"message": get_anime_with_completion()}
 
+@app.get("/allwatchthroughs")
+async def get_all_watchthroughs():
+	con = sqlite3.connect(dbfile)
+	cur = con.cursor()
+	res = cur.execute("""
+		SELECT W.WatchthroughId, W.WatchPartnerId, A.AnimeId, A.Title, WP.Name AS WatchPartner,
+			'S' || W.Season || 'E' || W.Episode AS Episode, W.IsActive,
+			CASE
+				WHEN W.Season = A.LastSeason AND W.Episode = A.LastEpisode AND E.TotalExtras = E.WatchedExtras THEN 4
+				WHEN W.Season = A.LastSeason AND W.Episode = A.LastEpisode THEN 3
+				WHEN W.Season > 1 OR A.LastSeason = 1 AND W.Season = 1 AND W.Episode = A.LastEpisode THEN 2
+				WHEN W.Season > 0 OR W.Episode > 0 THEN 1
+				ELSE 0
+			END AS Completion
+		FROM Watchthrough W
+			JOIN Anime A ON W.AnimeId = A.AnimeId
+			JOIN WatchPartner WP ON W.WatchPartnerId = WP.WatchPartnerId
+			JOIN (SELECT W.WatchthroughId, sum(CASE WHEN AE.AnimeExtraId IS NOT NULL THEN 1 ELSE 0 END) AS TotalExtras,
+					sum(CASE WHEN WAE.WatchthroughId IS NOT NULL THEN 1 ELSE 0 END) AS WatchedExtras
+				FROM Watchthrough W
+					LEFT OUTER JOIN AnimeExtra AE ON W.AnimeId = AE.AnimeId
+					LEFT OUTER JOIN WatchthroughAnimeExtra WAE ON WAE.AnimeExtraId = AE.AnimeExtraId AND WAE.WatchthroughId = W.WatchthroughId
+				GROUP BY W.WatchthroughId) AS E ON W.WatchthroughId = E.WatchthroughId
+		ORDER BY CASE WHEN LOWER(A.Title) LIKE 'the %' THEN SUBSTR(LOWER(A.Title), 5) ELSE LOWER(A.Title) END, WP.WatchPartnerId""")
+	cols = tuple([col[0] for col in cur.description])
+	data = {"columns": cols, "rows": res.fetchall()}
+	return {"message": data}
+
 @app.get("/anime/{anime_id}")
 async def get_anime(anime_id):
 	con = sqlite3.connect(dbfile)
