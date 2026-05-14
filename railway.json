@@ -3,4 +3,7 @@
   "build": {
     "builder": "RAILPACK"
   }
+  "deploy": {
+	  "startCommand": "fastapi run app.py --port $PORT"
+  }
 }
